@@ -88,7 +88,8 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
         content TEXT NOT NULL,
         is_deleted BOOLEAN DEFAULT false,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        edited_at TIMESTAMP WITH TIME ZONE
     );
     
     CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments.comments(post_id);

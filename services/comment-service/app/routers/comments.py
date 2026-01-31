@@ -56,6 +56,30 @@ def get_comments_by_post(
     )
 
 
+@router.post("/post/{post_id}", response_model=APIResponse[CommentResponse])
+def create_comment_by_post(
+    post_id: uuid.UUID,
+    comment_in: CommentCreate,
+    current_user: dict = Depends(get_current_user),
+    service: CommentService = Depends(get_comment_service),
+):
+    """Create a comment on a specific post (post_id from URL)"""
+    try:
+        # Override post_id from URL
+        comment_data = comment_in.model_dump()
+        comment_data["post_id"] = post_id
+        from app.schemas import CommentCreate as CommentCreateSchema
+
+        comment_with_post = CommentCreateSchema(**comment_data)
+
+        comment = service.create(
+            obj_in=comment_with_post, author_id=uuid.UUID(current_user["user_id"])
+        )
+        return APIResponse(data=comment)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.get("/{comment_id}", response_model=APIResponse[CommentWithReplies])
 def get_comment(
     comment_id: uuid.UUID,

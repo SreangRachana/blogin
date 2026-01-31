@@ -5,11 +5,11 @@ from typing import Optional
 
 
 class LikeBase(BaseModel):
-    post_slug: str
+    pass
 
 
 class LikeCreate(LikeBase):
-    pass
+    post_slug: str
 
 
 class LikeResponse(BaseModel):

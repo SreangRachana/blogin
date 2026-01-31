@@ -9,7 +9,7 @@ class CommentBase(BaseModel):
 
 
 class CommentCreate(CommentBase):
-    post_id: uuid.UUID
+    post_id: Optional[uuid.UUID] = None
     parent_id: Optional[uuid.UUID] = None
 
 
@@ -26,6 +26,8 @@ class CommentInDB(CommentBase):
     created_at: datetime
     updated_at: datetime
     edited_at: Optional[datetime] = None
+    edited: bool = False
+    edited_at_formatted: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -33,6 +35,10 @@ class CommentInDB(CommentBase):
     @model_validator(mode="after")
     def compute_edited_flag(self):
         self.edited = self.edited_at is not None
+        if self.edited_at:
+            self.edited_at_formatted = (
+                f"edited - {self.edited_at.strftime('%b %d, %Y %I:%M %p')}"
+            )
         return self
 
 

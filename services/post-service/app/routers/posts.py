@@ -174,9 +174,9 @@ async def create_new_post(
     )
 
 
-@router.put("/{post_id}", response_model=APIResponse)
+@router.put("/{post_identifier}/", response_model=APIResponse)
 async def update_existing_post(
-    post_id: str,
+    post_identifier: str,
     post_data: PostUpdate,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
@@ -184,8 +184,33 @@ async def update_existing_post(
     token = credentials.credentials
     user_id = get_current_user_id(token)
 
-    post = update_post(db, uuid.UUID(post_id), user_id, post_data)
+    # Try to get post by UUID first, then by slug
+    post = None
+    try:
+        post = get_post_by_id(db, uuid.UUID(post_identifier))
+    except ValueError:
+        # Not a valid UUID, try slug instead
+        pass
+
     if not post:
+        post = get_post_by_slug(db, post_identifier)
+
+    if not post:
+        raise HTTPException(
+            status_code=404, detail="Post not found or you don't have permission"
+        )
+
+    # Check if user is the author
+    if post.author_id != user_id:
+        raise HTTPException(
+            status_code=403, detail="You don't have permission to update this post"
+        )
+
+    # Update the post
+    from app.services.post_service import update_post as service_update_post
+
+    updated_post = service_update_post(db, post.id, user_id, post_data)
+    if not updated_post:
         raise HTTPException(
             status_code=404, detail="Post not found or you don't have permission"
         )
@@ -193,31 +218,49 @@ async def update_existing_post(
     return APIResponse(
         success=True,
         data={
-            "id": str(post.id),
-            "slug": post.slug,
-            "title": post.title,
-            "status": post.status,
-            "updated_at": post.updated_at.isoformat(),
+            "id": str(updated_post.id),
+            "slug": updated_post.slug,
+            "title": updated_post.title,
+            "status": updated_post.status,
+            "updated_at": updated_post.updated_at.isoformat(),
         },
         message="Post updated successfully",
         errors=None,
     )
 
 
-@router.delete("/{post_id}", response_model=APIResponse)
+@router.delete("/{post_identifier}/", response_model=APIResponse)
 async def delete_existing_post(
-    post_id: str,
+    post_identifier: str,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
     token = credentials.credentials
     user_id = get_current_user_id(token)
 
-    deleted = delete_post(db, uuid.UUID(post_id), user_id)
-    if not deleted:
+    # Try to get post by UUID first, then by slug
+    post = None
+    try:
+        post = get_post_by_id(db, uuid.UUID(post_identifier))
+    except ValueError:
+        # Not a valid UUID, try slug instead
+        pass
+
+    if not post:
+        post = get_post_by_slug(db, post_identifier)
+
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    # Check if user is the author
+    if post.author_id != user_id:
         raise HTTPException(
-            status_code=404, detail="Post not found or you don't have permission"
+            status_code=403, detail="You don't have permission to delete this post"
         )
+
+    # Delete the post
+    db.delete(post)
+    db.commit()
 
     return APIResponse(
         success=True, data=None, message="Post deleted successfully", errors=None
